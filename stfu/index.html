@@ -49,7 +49,7 @@
             const source = audioContext.createMediaStreamSource(mediaStream);
             const delayNode = audioContext.createDelay(5);
             const gainNode = audioContext.createGain();
-            delayNode.delayTime.value = 2;
+            delayNode.delayTime.value = 1;
             gainNode.gain.value = 0.8;
             source.connect(delayNode);
             delayNode.connect(gainNode);
