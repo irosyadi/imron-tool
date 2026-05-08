@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Minimal Manim-Web Scene</title>
+  <script type="module">
+    import { Scene, Circle, Create, FadeOut, BLACK } from 'https://cdn.jsdelivr.net/npm/manim-web/dist/manim-web.esm.js';
+
+    // Set up the scene
+    const container = document.getElementById('container');
+    const scene = new Scene(container, {
+      width: 800,
+      height: 450,
+      backgroundColor: BLACK,
+    });
+    // Create and animate a circle
+    const circle = new Circle({ radius: 1.5 });
+    await scene.play(new Create(circle));
+    await scene.wait(1);
+    await scene.play(new FadeOut(circle));
+  </script>
+</head>
+<body>
+  <div id="scene"></div>
+</body>
+</html>
