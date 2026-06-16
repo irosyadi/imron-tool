@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:;">
+    <title data-i18n="appTitle">Espanso YAML Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+    <header>
+        <div class="logo-container">
+            <div class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span>Espanso YAML Editor</span>
+            </div>
+            <div class="header-subtitle" data-i18n="headerSubtitle">Créez vos raccourcis Espanso facilement</div>
+        </div>
+        <div class="actions">
+            <div class="lang-switcher">
+                <button class="lang-btn active" data-lang="fr">FR</button>
+                <button class="lang-btn" data-lang="en">EN</button>
+            </div>
+
+            <!-- Menu déroulant pour ouvrir (fichier ou dossier) -->
+            <div class="dropdown-container">
+                <button id="btnOpenDropdown" class="btn secondary">
+                    <span data-i18n="btnOpenMenu">Ouvrir</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+                <div id="openMenu" class="dropdown-menu hidden">
+                    <button id="btnLoadFile" class="dropdown-item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        <span data-i18n="btnLoadFile">Fichier (.yml)</span>
+                    </button>
+                    <button id="btnLoadFolder" class="dropdown-item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <span data-i18n="btnLoadFolder">Dossier (/match)</span>
+                    </button>
+                </div>
+            </div>
+            <div class="dropdown-container">
+                <div class="split-button">
+                    <button id="btnSave" class="btn primary">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                            <polyline points="17 21 17 13 7 13 7 21" />
+                            <polyline points="7 3 7 8 15 8" />
+                        </svg>
+                        <span data-i18n="btnSave">Enregistrer</span>
+                    </button>
+                    <button id="btnDropdown" class="btn primary dropdown-toggle" data-i18n-title="btnDropdownTitle"
+                        title="Plus d'options">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                </div>
+                <div id="saveDropdown" class="dropdown-menu hidden">
+                    <button id="btnSaveAs" class="dropdown-item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                            <path d="M17 21v-8H7v8" />
+                            <path d="M7 3v5h8" />
+                            <circle cx="18" cy="18" r="3" />
+                        </svg>
+                        <span data-i18n="btnSaveAs">Enregistrer sous...</span>
+                    </button>
+                </div>
+            </div>
+            <!-- Bouton d'aide direct -->
+            <button id="btnHelp" class="btn secondary" data-i18n-title="btnHelpTitle" title="Aide">
+                <span>?</span>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="split-view">
+                <!-- Sidebar for navigation -->
+                <div class="sidebar-pane">
+                    <div class="toolbar sidebar-toolbar">
+                        <h3 data-i18n="sidebarTitle">Explorateur</h3>
+                        <div class="sidebar-actions">
+                            <button id="btnNewFile" class="btn-icon" data-i18n-title="btnNewFile"
+                                title="Nouveau fichier YML">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="12" y1="12" x2="12" y2="18"></line>
+                                    <line x1="9" y1="15" x2="15" y2="15"></line>
+                                </svg>
+                            </button>
+                            <button id="btnNewFolder" class="btn-icon" data-i18n-title="btnNewFolder"
+                                title="Nouveau dossier">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path
+                                        d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z">
+                                    </path>
+                                    <line x1="12" y1="11" x2="12" y2="17"></line>
+                                    <line x1="9" y1="14" x2="15" y2="14"></line>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="sidebarList" class="sidebar-list">
+                        <!-- Triggers will be listed here -->
+                    </div>
+                </div>
+
+                <!-- Visual Editor Side -->
+                <div class="visual-pane">
+                    <div class="toolbar">
+                        <div class="status-bar" id="statusMessage" data-i18n="statusEmpty">Prêt. Aucun fichier ouvert.
+                        </div>
+                        <button id="btnAdd" class="btn accent">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19" />
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                            <span data-i18n="btnAddMatch">Ajouter un Match</span>
+                        </button>
+                    </div>
+
+                    <div id="matchesList" class="matches-grid">
+                        <!-- Les cards seront générées ici par JS -->
+                        <div class="empty-state">
+                            <p data-i18n="welcomeMessage">Commencez par ouvrir un fichier .yml ou créez un nouveau
+                                match.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live YAML Preview Side -->
+                <div class="yaml-pane">
+                    <div class="toolbar preview-toolbar">
+                        <h3 data-i18n="yamlPreviewTitle">Aperçu YAML</h3>
+                        <div class="actions">
+                            <button id="btnFormatYaml" class="btn secondary small" data-i18n-title="btnFormatTitle"
+                                title="Formater le code">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="4 7 4 4 20 4 20 7"></polyline>
+                                    <line x1="9" y1="20" x2="15" y2="20"></line>
+                                    <line x1="12" y1="4" x2="12" y2="20"></line>
+                                </svg>
+                                <span data-i18n="btnFormat">Formater</span>
+                            </button>
+                            <button id="btnCopyYaml" class="btn secondary small" data-i18n-title="btnCopyTitle"
+                                title="Copier le contenu">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                                <span data-i18n="btnCopy">Copier</span>
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="yamlEditor" spellcheck="false" data-i18n-placeholder="yamlPlaceholder"
+                        placeholder="# Le contenu YAML apparaîtra ici..."></textarea>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal d'édition UNIFIÉ -->
+    <div id="editorModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle" data-i18n="editMatch">Éditer le Match</h2>
+                <button class="close-btn" id="btnCloseModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Overlay de sélection de type (pour NOUVEAU match seulement) -->
+                <div id="typeOverlay" class="type-overlay">
+                    <div class="type-selection-content">
+                        <h3 data-i18n="selectTypeTitle">Quel type de raccourci ?</h3>
+                        <p data-i18n="selectTypeDesc">Choisissez le format de base.</p>
+                        <div class="type-buttons-large">
+                            <button class="type-btn-large" data-type="simple">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    <polyline points="10 9 9 9 8 9"></polyline>
+                                </svg>
+                                <span data-i18n="typeSimple">Texte Simple</span>
+                            </button>
+                            <button class="type-btn-large" data-type="rich">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M4 7V4h16v3"></path>
+                                    <path d="M9 20h6"></path>
+                                    <path d="M12 4v16"></path>
+                                    <path d="M6 10l-2 2 2 2"></path>
+                                    <path d="M18 14l2-2-2-2"></path>
+                                </svg>
+                                <span data-i18n="typeRich">Texte riche</span>
+                            </button>
+                            <button class="type-btn-large" data-type="interactive">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="4" width="18" height="12" rx="2"></rect>
+                                    <path d="M7 20h10"></path>
+                                    <path d="M9 16v4"></path>
+                                    <path d="M15 16v4"></path>
+                                    <path d="M7 8h10"></path>
+                                    <path d="M7 12h4"></path>
+                                </svg>
+                                <span data-i18n="typeInteractive">Formulaire</span>
+                            </button>
+                            <button class="type-btn-large" data-type="date">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg>
+                                <span data-i18n="typeDate">Date</span>
+                            </button>
+                            <button class="type-btn-large" data-type="image">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                    <polyline points="21 15 16 10 5 21"></polyline>
+                                </svg>
+                                <span data-i18n="typeImage">Image</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trigger -->
+                <div class="form-group">
+                    <label for="triggerInput">
+                        <span data-i18n="triggerLabel">Déclencheur (Trigger)</span>
+                        <i class="tooltip-icon" data-i18n-tooltip="tooltipTrigger">?</i>
+                    </label>
+                    <input type="text" id="triggerInput" data-i18n-placeholder="triggerPlaceholder"
+                        placeholder=":monraccourci">
+                    <small data-i18n="triggerHelp">Le texte à taper pour déclencher le remplacement (ex: :date)</small>
+                </div>
+
+                <!-- UNIFIED EDITOR -->
+                <div id="unifiedEditor" class="unified-editor">
+                    <!-- Toolbar unifiée -->
+                    <div class="unified-toolbar">
+                        <!-- Formatting buttons (for simple, rich modes) -->
+                        <div class="unified-format-group">
+                            <button class="md-toolbar-btn" data-md="html_b" title="Gras"><strong>B</strong></button>
+                            <button class="md-toolbar-btn" data-md="html_i" title="Italique"><em>I</em></button>
+                            <button class="md-toolbar-btn" data-md="html_s" title="Barré"><s>S</s></button>
+                            <button class="md-toolbar-btn" data-md="html_u" title="Souligné"><u>U</u></button>
+                            <div class="md-toolbar-sep"></div>
+                            <button class="md-toolbar-btn" data-md="html_link" title="Lien">🔗</button>
+                            <button class="md-toolbar-btn" data-md="html_code" title="Code"></></button>
+                            <div class="md-toolbar-sep"></div>
+                            <button class="md-toolbar-btn" data-md="html_ul" title="Liste">•</button>
+                            <button class="md-toolbar-btn" data-md="html_ol" title="Liste numérotée">1.</button>
+                        </div>
+                        <div class="unified-toolbar-sep"></div>
+                        <!-- Mode Toggle (rich only) -->
+                        <div id="unifiedModeToggle" class="unified-mode-toggle">
+                            <button class="md-mode-btn active" data-rich-mode="html"
+                                data-i18n="richModeHtml">HTML</button>
+                            <button class="md-mode-btn" data-rich-mode="markdown"
+                                data-i18n="richModeMarkdown">Markdown</button>
+                            <div class="md-toolbar-sep"></div>
+                        </div>
+                        <div class="unified-toolbar-sep"></div>
+                        <!-- Insert Menu -->
+                        <div class="unified-insert-group">
+                            <div class="insert-dropdown">
+                                <button class="btn secondary small insert-toggle" id="btnInsertToggle">
+                                    <span data-i18n="insertLabel">Insérer</span>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </button>
+                                <div class="insert-menu hidden" id="insertMenu">
+                                    <button class="insert-menu-item" data-insert-type="text">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                        </svg>
+                                        <span data-i18n="insertText">Champ texte</span>
+                                    </button>
+                                    <button class="insert-menu-item" data-insert-type="choice">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                        </svg>
+                                        <span data-i18n="insertChoice">Choix (dropdown)</span>
+                                    </button>
+                                    <button class="insert-menu-item" data-insert-type="list">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <line x1="8" y1="6" x2="21" y2="6"></line>
+                                            <line x1="8" y1="12" x2="21" y2="12"></line>
+                                            <line x1="8" y1="18" x2="21" y2="18"></line>
+                                            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                                            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                                            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                                        </svg>
+                                        <span data-i18n="insertList">Liste (selection)</span>
+                                    </button>
+                                    <button class="insert-menu-item" data-insert-type="multiline">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                                            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                                            <path d="M6 6h.01M6 18h.01"></path>
+                                        </svg>
+                                        <span data-i18n="insertMultiline">Texte multilignes</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Zone d'édition -->
+                    <textarea id="contentInput" rows="8" data-i18n-placeholder="contentPlaceholder"
+                        placeholder="Votre texte ici..."></textarea>
+
+                    <!-- CONFIGURATION DES VARIABLES (Placé directement au-dessus de l'aperçu) -->
+                    <div id="varsConfigPanel" class="vars-config hidden">
+                        <div class="vars-config-header">
+                            <span data-i18n="varsConfigTitle">Variables détectées</span>
+                            <span class="vars-config-hint" data-i18n="varsConfigHint">Utilisez <code>{{nom}}</code> dans
+                                le texte pour créer une variable</span>
+                        </div>
+                        <div id="varsConfigList" class="vars-config-list">
+                            <!-- Les cartes de configuration seront générées ici par JS -->
+                        </div>
+                    </div>
+
+<!-- CONFIGURATION IMAGE -->
+<div id="imageConfigPanel" class="form-group hidden">
+    <label for="imagePathInput">
+        <span data-i18n="imagePathLabel">Chemin de l'image (image_path)</span>
+        <i class="tooltip-icon" data-i18n-tooltip="tooltipImagePath">?</i>
+    </label>
+    <div style="display: flex; gap: 0.5rem; align-items: stretch;">
+        <input type="text" id="imagePathInput" style="flex: 1;" placeholder="$CONFIG/img/mon-image.png">
+        
+        <div class="dropdown-container">
+            <button id="btnLibraryImage" type="button" class="btn secondary" title="Choisir depuis la bibliothèque">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+            </button>
+            <div id="libraryDropdown" class="dropdown-menu hidden" style="width: 250px; max-height: 250px; overflow-y: auto; right: 0;">
+                <!-- Rempli dynamiquement -->
+            </div>
+        </div>
+
+        <button id="btnSelectImage" type="button" class="btn secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <span data-i18n="btnSelectImage">Importer...</span>
+        </button>
+    </div>
+    <input type="file" id="imageFileInput" accept="image/*" class="hidden">
+    <small data-i18n="imagePathHelp">Utilisez le préfixe $CONFIG/ pour un chemin relatif au dossier d'Espanso.</small>
+</div>
+
+<!-- Date format config (visible when {{var}} of type "date" detected, or type === "date") -->
+<div id="dateFormatConfig" class="vars-config hidden">
+    <div class="vars-config-header">
+        <span data-i18n="dateConfigTitle">Format de date par défaut</span>
+    </div>
+    <div class="var-date-config-row">
+        <input type="text" id="dateFormatDefault" value="%d/%m/%Y">
+        <small class="var-helper" data-i18n="dateParameters">Paramètres : %d (jour), %m (mois), %Y (année), %H:%M (heure).</small>
+        <a href="https://docs.rs/chrono/latest/chrono/format/strftime/index.html" target="_blank" rel="noopener noreferrer" class="var-helper-link" data-i18n="dateGuideLink" style="font-size: 0.75rem; color: var(--primary-color); display: block; margin-top: 0.25rem;">Guide complet des formats (Chrono)</a>
+    </div>
+</div>
+
+                    <!-- APERÇU (toujours au bas du bloc) -->
+                    <div id="previewSection" class="preview-section">
+                        <div class="preview-header">
+                            <span class="preview-label" data-i18n="previewLabel">Aperçu</span>
+                            <span id="previewTypeLabel" class="preview-type-label"></span>
+                        </div>
+                        <div id="previewContent" class="preview-content"></div>
+                    </div>
+                </div>
+
+                <!-- Template pour générer les blocs d'édition de variables inline -->
+                <template id="varConfigRowTemplate">
+    <div class="var-config-row" data-var-name="">
+        <div class="var-config-header-row">
+            <span class="var-config-name"></span>
+            <div class="var-config-type">
+                <select class="var-type-select">
+                    <option value="static" data-i18n="varTypeStatic">Texte (static)</option>
+                    <option value="choice" data-i18n="varTypeChoice">Choix (dropdown)</option>
+                    <option value="list" data-i18n="varTypeList">Liste (selection)</option>
+                    <option value="multiline" data-i18n="varTypeMultiline">Texte multilignes</option>
+                    <option value="date" data-i18n="varTypeDate">Date</option>
+                </select>
+            </div>
+        </div>
+        <div class="var-config-body">
+            <!-- Static value input -->
+            <div class="var-config-field var-static-field">
+                <label class="var-field-label" data-i18n="varDefaultValue">Valeur par défaut</label>
+                <input type="text" class="var-default-value" placeholder="Valeur">
+            </div>
+
+            <!-- Multiline value textarea -->
+            <div class="var-config-field var-multiline-field hidden">
+                <label class="var-field-label" data-i18n="varDefaultValue">Valeur par défaut</label>
+                <textarea class="var-default-value-multiline" rows="2" placeholder="Valeur multilignes..."></textarea>
+            </div>
+
+            <!-- Choice/List options editor (Repliable) -->
+            <div class="var-config-field var-options-field hidden">
+                <div class="var-options-header">
+                    <div class="var-options-header-title" style="display: flex; align-items: center; gap: 0.25rem;">
+                        <button type="button" class="btn-icon var-options-toggle-btn" title="Replier/Déplier" style="padding: 2px; display: inline-flex; align-items: center;">
+                            <svg class="toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        <label class="var-field-label" data-i18n="varChoicesList" style="cursor: pointer; margin: 0;">Options</label>
+                    </div>
+                    <button type="button" class="btn secondary small var-add-option-btn">
+                        <span data-i18n="addOption">+ Ajouter</span>
+                    </button>
+                </div>
+                <div class="var-options-list">
+                    <!-- Options ajoutées dynamiquement -->
+                </div>
+            </div>
+
+            <!-- Date format -->
+            <div class="var-config-field var-date-field hidden">
+                <label class="var-field-label" data-i18n="varDateFormat">Format</label>
+                <input type="text" class="var-date-format" value="%d/%m/%Y">
+                <small class="var-helper">Paramètres : %d (jour), %m (mois), %Y (année), %H:%M (heure).</small>
+            </div>
+        </div>
+    </div>
+</template>
+
+                <!-- Option row template -->
+                <template id="varOptionRowTemplate">
+                    <div class="var-option-row">
+                        <input type="text" class="var-option-text" placeholder="Texte affiché">
+                        <textarea class="var-option-value" rows="1" placeholder="Valeur (identique si vide)"></textarea>
+                        <button type="button" class="btn-icon var-option-remove" title="Supprimer">&times;</button>
+                    </div>
+                </template>
+
+            </div>
+            <div class="modal-footer">
+                <button id="btnDeleteMatch" class="btn danger" data-i18n="btnDelete">Supprimer</button>
+                <div class="spacer"></div>
+                <button id="btnCancel" class="btn secondary" data-i18n="btnCancel">Annuler</button>
+                <button id="btnSaveMatch" class="btn primary" data-i18n="btnSaveMatch">Valider</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 data-i18n="helpModalTitle">Comment utiliser cet outil ?</h2>
+                <button class="close-btn" id="btnCloseHelp">&times;</button>
+            </div>
+            <div class="modal-body">
+                <section>
+                    <h3 data-i18n="whatIsEspanso">Qu'est-ce qu'Espanso ?</h3>
+                    <p data-i18n="espansoDesc">Espanso est un <strong>remplaceur de texte</strong> (text expander). Il
+                        surveille ce que vous tapez et remplace instantanément des mots-clés par du contenu plus long,
+                        des dates, ou des formulaires complexes.</p>
+                </section>
+
+                <section>
+                    <h3 data-i18n="whatIsTool">À quoi sert cet éditeur ?</h3>
+                    <p data-i18n="toolDesc">Espanso utilise des fichiers <code>.yml</code> pour stocker vos raccourcis.
+                        Ce site vous permet de :</p>
+                    <ul>
+                        <li data-i18n="feature1">Créer des raccourcis visuellement sans erreur de syntaxe.</li>
+                        <li data-i18n="feature2">Gérer des formulaires avec choix et listes déroulantes.</li>
+                        <li data-i18n="feature3">Générer des dates automatiques au bon format.</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h3 data-i18n="whereToSave">Où enregistrer vos fichiers ?</h3>
+                    <p data-i18n="savePathDesc">Pour qu'Espanso détecte vos raccourcis, enregistrez votre fichier dans
+                        le dossier <code>match</code> de votre configuration :</p>
+                    <p class="help-tip" data-i18n="savePathTip">Astuce : Vous pouvez créer autant de fichiers .yml que
+                        vous le souhaitez dans ce dossier pour organiser vos raccourcis par thèmes (ex : pro.yml,
+                        perso.yml, etc.).</p>
+
+                    <table class="os-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="tableOS">Système</th>
+                                <th data-i18n="tablePath">Chemin du répertoire /match</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Windows</strong></td>
+                                <td>
+                                    <code>%APPDATA%\espanso\match\</code>
+                                    <button class="btn secondary small btn-copy-mini" data-i18n="btnCopyMini"
+                                        data-copy-text="%APPDATA%\espanso\match\">Copier</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>macOS</strong></td>
+                                <td>
+                                    <code>~/Library/Application Support/espanso/match/</code>
+                                    <button class="btn secondary small btn-copy-mini" data-i18n="btnCopyMini"
+                                        data-copy-text="~/Library/Application Support/espanso/match/">Copier</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Linux</strong></td>
+                                <td>
+                                    <code>~/.config/espanso/match/</code>
+                                    <button class="btn secondary small btn-copy-mini" data-i18n="btnCopyMini"
+                                        data-copy-text="~/.config/espanso/match/">Copier</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+
+                <section>
+                    <h3 data-i18n="tutorialSymLinksTitle">🖥️ Tutoriel : Utiliser des liens symboliques sous Windows</h3>
+                    <p data-i18n="tutorialSymLinksDesc">Si vous souhaitez centraliser vos fichiers de raccourcis dans un dossier spécifique (par exemple, pour les synchroniser ou les gérer plus facilement avec l'éditeur), vous pouvez créer un <strong>lien symbolique</strong>. Cela permettra à Espanso de lire vos fichiers comme s'ils étaient au bon endroit, sans que vous ayez à les déplacer.</p>
+                    <p data-i18n="tutorialSymLinksMotivation"><strong>Pas de panique</strong>, la manipulation ne prend que quelques secondes ! Suivez le guide :</p>
+                    <h4 data-i18n="tutorialSymLinksStep1Title">Étape 1 : Ouvrir l'Invite de commande en mode Administrateur</h4>
+                    <ul>
+                        <li data-i18n="tutorialSymLinksStep1a">Cliquez sur le menu <strong>Démarrer</strong> de Windows (ou appuyez sur la touche "Windows" de votre clavier).</li>
+                        <li data-i18n="tutorialSymLinksStep1b">Tapez simplement les trois lettres <strong>cmd</strong>.</li>
+                        <li data-i18n="tutorialSymLinksStep1c">Dans les résultats de recherche, faites un <strong>clic droit</strong> sur <em>Invite de commandes</em> et choisissez <em>Exécuter en tant qu'administrateur</em>.</li>
+                        <li data-i18n="tutorialSymLinksStep1d">Validez par "Oui" si Windows vous demande une autorisation. Une fenêtre noire s'ouvre.</li>
+                    </ul>
+                    <h4 data-i18n="tutorialSymLinksStep2Title">Étape 2 : Préparer et lancer la commande</h4>
+                    <p data-i18n="tutorialSymLinksStep2a">Copiez la ligne ci-dessous, mais attention : avant d'appuyer sur Entrée, vous devez <strong>remplacer la seconde partie</strong> par le chemin du dossier où vous stockez vos raccourcis.</p>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0;">
+                        <code style="flex: 1;">mklink /D "%APPDATA%\espanso\config\match\MonDossier" "C:\Chemin\Vers\Vos\Raccourcis"</code>
+                        <button class="btn secondary small btn-copy-mini" data-i18n="btnCopyMini" data-copy-text='mklink /D "%APPDATA%\espanso\config\match\MonDossier" "C:\Chemin\Vers\Vos\Raccourcis"'>Copier</button>
+                    </div>
+                    <div class="help-tip" data-i18n="tutorialSymLinksStep2b">💡 <strong>Astuce pour ne pas vous tromper de chemin :</strong> Allez dans votre explorateur de fichiers, ouvrez le dossier où se trouvent vos raccourcis, cliquez tout en haut dans la barre d'adresse, et copiez le chemin. Remplacez ensuite "C:\Chemin\Vers\Vos\Raccourcis" par ce que vous venez de copier (gardez bien les guillemets).</div>
+                    <h4 data-i18n="tutorialSymLinksStep3Title">Étape 3 : Vérifier que cela a fonctionné</h4>
+                    <p data-i18n="tutorialSymLinksStep3a">Collez la commande modifiée dans la fenêtre noire (un simple <strong>clic droit</strong> dans la fenêtre suffit souvent à coller le texte) et appuyez sur Entrée.</p>
+                    <p data-i18n="tutorialSymLinksStep3b">Si tout est correct, la console affichera ce message de confirmation : <code>Lien symbolique créé pour [...]</code></p>
+                    <p data-i18n="tutorialSymLinksStep3c">Il ne vous reste plus qu'à <strong>redémarrer Espanso</strong> (en tapant <code>espanso restart</code> dans la console ou via l'icône dans votre barre des tâches) pour qu'il charge vos nouveaux raccourcis.</p>
+                </section>
+
+                <div class="alert-box" data-i18n="securityNote">
+                    <strong>Note :</strong> Pour des raisons de sécurité, les navigateurs ne peuvent pas écrire
+                    directement dans vos dossiers système. Enregistrez le fichier sur votre bureau, puis déplacez-le
+                    manuellement.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="btnCloseHelpFooter" class="btn primary" data-i18n="btnGotIt">Compris</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="main-footer">
+        <div class="footer-content">
+            <p>
+                <a href="https://espanso.org/" target="_blank" rel="noopener noreferrer">espanso.org</a>
+            </p>
+            <p class="credit">
+                <span data-i18n="footerMadeWith">Fait avec</span> <span class="heart">❤️</span>
+                <span data-i18n="footerBy">par</span> <a href="https://github.com/cestpassicomplexe" target="_blank"
+                    rel="noopener noreferrer">cestpassicomplexe</a>
+            </p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
