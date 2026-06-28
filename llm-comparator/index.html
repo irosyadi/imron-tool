@@ -449,7 +449,19 @@
                             <button class="clear-key-button btn-danger text-xs px-2 py-1" data-provider="anthropic">Clear</button>
                         </div>
                         <div class="model-options ml-6 mt-3 pt-3 border-t border-base-1/20" id="anthropic-models">
-                            <div class="mt-2 flex items-center gap-2">
+                            <div class="mt-2 space-y-2">
+                                <label for="anthropic-model-search" class="block text-xs text-base-1 uppercase tracking-wider">Search Available Models</label>
+                                <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+                                    <input type="text" id="anthropic-model-search" placeholder="Search Anthropic models..." class="form-input flex-1">
+                                    <button id="anthropic-refresh-models" class="btn-secondary text-xs px-2 py-1">Refresh</button>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2 text-xs text-base-1">
+                                    <span id="anthropic-models-last-updated">Not refreshed yet</span>
+                                    <span id="anthropic-models-status" class="text-xs text-base-1"></span>
+                                </div>
+                                <div id="anthropic-model-results" class="mt-1 max-h-64 overflow-y-auto pr-1 space-y-2"></div>
+                            </div>
+                            <div class="mt-3 flex items-center gap-2">
                                 <input type="text" id="anthropic-custom" placeholder="Model ID..." data-provider="anthropic" class="form-input flex-1">
                                 <button id="anthropic-save-model" class="btn-success">Save</button>
                             </div>
@@ -481,7 +493,19 @@
                             <button class="clear-key-button btn-danger text-xs px-2 py-1" data-provider="gemini">Clear</button>
                         </div>
                         <div class="model-options ml-6 mt-3 pt-3 border-t border-base-1/20" id="gemini-models">
-                            <div class="mt-2 flex items-center gap-2">
+                            <div class="mt-2 space-y-2">
+                                <label for="gemini-model-search" class="block text-xs text-base-1 uppercase tracking-wider">Search Available Models</label>
+                                <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+                                    <input type="text" id="gemini-model-search" placeholder="Search Gemini models..." class="form-input flex-1">
+                                    <button id="gemini-refresh-models" class="btn-secondary text-xs px-2 py-1">Refresh</button>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2 text-xs text-base-1">
+                                    <span id="gemini-models-last-updated">Not refreshed yet</span>
+                                    <span id="gemini-models-status" class="text-xs text-base-1"></span>
+                                </div>
+                                <div id="gemini-model-results" class="mt-1 max-h-64 overflow-y-auto pr-1 space-y-2"></div>
+                            </div>
+                            <div class="mt-3 flex items-center gap-2">
                                 <input type="text" id="gemini-custom" placeholder="Model ID..." data-provider="gemini" class="form-input flex-1">
                                 <button id="gemini-save-model" class="btn-success">Save</button>
                             </div>
@@ -1046,12 +1070,35 @@
 
             let endpoint = '';
             let apiKey = '';
+            let headers = {
+                'Content-Type': 'application/json'
+            };
 
             if (providerId === 'openai') {
                 endpoint = API_CONFIGS.openai.endpoint;
                 apiKey = getStoredApiKey('openai');
                 if (!apiKey) {
                     setCompatibleModelStatus('openai', 'Add an OpenAI API key to refresh.', 'text-sol-red');
+                    return;
+                }
+                if (apiKey) {
+                    headers['Authorization'] = `Bearer ${apiKey}`;
+                }
+            } else if (providerId === 'anthropic') {
+                endpoint = API_CONFIGS.anthropic.endpoint;
+                apiKey = getStoredApiKey('anthropic');
+                if (!apiKey) {
+                    setCompatibleModelStatus('anthropic', 'Add an Anthropic API key to refresh.', 'text-sol-red');
+                    return;
+                }
+                headers['x-api-key'] = apiKey;
+                headers['anthropic-version'] = '2023-06-01';
+                headers['anthropic-dangerous-direct-browser-access'] = 'true';
+            } else if (providerId === 'gemini') {
+                endpoint = API_CONFIGS.gemini.endpoint;
+                apiKey = getStoredApiKey('gemini');
+                if (!apiKey) {
+                    setCompatibleModelStatus('gemini', 'Add a Gemini API key to refresh.', 'text-sol-red');
                     return;
                 }
             } else {
@@ -1063,6 +1110,9 @@
                     setCompatibleModelStatus(providerId, 'Configure an endpoint URL to refresh.', 'text-sol-red');
                     return;
                 }
+                if (apiKey) {
+                    headers['Authorization'] = `Bearer ${apiKey}`;
+                }
             }
 
             const refreshButton = document.getElementById(`${providerId}-refresh-models`);
@@ -1073,12 +1123,9 @@
             setCompatibleModelStatus(providerId, 'Refreshing models...', 'text-base-1');
 
             try {
-                const modelsUrl = getModelsEndpoint(endpoint);
-                const headers = {
-                    'Content-Type': 'application/json'
-                };
-                if (apiKey) {
-                    headers['Authorization'] = `Bearer ${apiKey}`;
+                let modelsUrl = getModelsEndpoint(endpoint);
+                if (providerId === 'gemini') {
+                    modelsUrl = `${modelsUrl}?key=${apiKey}`;
                 }
 
                 const response = await fetch(modelsUrl, {
@@ -1091,17 +1138,26 @@
                 }
 
                 const body = await response.json();
-                const models = Array.isArray(body?.data) ? body.data : (Array.isArray(body) ? body : []);
+                let rawModels = [];
+                if (providerId === 'gemini') {
+                    rawModels = Array.isArray(body?.models) ? body.models : [];
+                } else {
+                    rawModels = Array.isArray(body?.data) ? body.data : (Array.isArray(body) ? body : []);
+                }
                 
                 const cacheData = {
                     cachedAt: new Date().toISOString(),
-                    models: models.map(m => {
+                    models: rawModels.map(m => {
                         if (typeof m === 'string') {
                             return { id: m };
                         }
+                        let id = m.id || m.name || '';
+                        if (providerId === 'gemini' && id.startsWith('models/')) {
+                            id = id.substring('models/'.length);
+                        }
                         return {
-                            id: m.id || m.name || '',
-                            owned_by: m.owned_by || ''
+                            id: id,
+                            owned_by: m.owned_by || m.display_name || m.displayName || ''
                         };
                     }).filter(m => m.id)
                 };
@@ -1731,6 +1787,34 @@
 
             updateCompatibleModelCacheInfo('openai');
             renderCompatibleModelResults('openai');
+
+            // For Anthropic models search & refresh
+            const anthropicSearchInput = document.getElementById('anthropic-model-search');
+            if (anthropicSearchInput) {
+                anthropicSearchInput.addEventListener('input', () => renderCompatibleModelResults('anthropic'));
+            }
+
+            const anthropicRefreshButton = document.getElementById('anthropic-refresh-models');
+            if (anthropicRefreshButton) {
+                anthropicRefreshButton.addEventListener('click', () => refreshCompatibleModels('anthropic'));
+            }
+
+            updateCompatibleModelCacheInfo('anthropic');
+            renderCompatibleModelResults('anthropic');
+
+            // For Gemini models search & refresh
+            const geminiSearchInput = document.getElementById('gemini-model-search');
+            if (geminiSearchInput) {
+                geminiSearchInput.addEventListener('input', () => renderCompatibleModelResults('gemini'));
+            }
+
+            const geminiRefreshButton = document.getElementById('gemini-refresh-models');
+            if (geminiRefreshButton) {
+                geminiRefreshButton.addEventListener('click', () => refreshCompatibleModels('gemini'));
+            }
+
+            updateCompatibleModelCacheInfo('gemini');
+            renderCompatibleModelResults('gemini');
 
             const params = new URLSearchParams(window.location.search);
             const gistParam = extractGistId(params.get('gist') || '');
