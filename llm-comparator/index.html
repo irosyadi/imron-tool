@@ -2070,7 +2070,8 @@
                 headers,
                 body: JSON.stringify({
                     model: model,
-                    messages: messages
+                    messages: messages,
+                    stream: true
                 })
             });
 
@@ -2079,8 +2080,33 @@
                 throw new Error(`HTTP ${response.status}: ${error}`);
             }
 
-            const data = await response.json();
-            const content = data.choices?.[0]?.message?.content;
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let content = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine || trimmedLine === 'data: [DONE]') continue;
+
+                    if (trimmedLine.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(trimmedLine.slice(6));
+                            const delta = data.choices?.[0]?.delta?.content || '';
+                            content += delta;
+                        } catch (e) {
+                            console.error('Error parsing streaming chunk:', e, trimmedLine);
+                        }
+                    }
+                }
+            }
+
             if (!content) {
                 throw new Error('No content returned from provider.');
             }
@@ -2118,7 +2144,8 @@
                     model: model,
                     max_tokens: 1000,
                     system: systemPrompt,
-                    messages: messages
+                    messages: messages,
+                    stream: true
                 })
             });
 
@@ -2127,8 +2154,38 @@
                 throw new Error(`HTTP ${response.status}: ${error}`);
             }
 
-            const data = await response.json();
-            return data.content[0].text;
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let content = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine) continue;
+
+                    if (trimmedLine.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(trimmedLine.slice(6));
+                            if (data.type === 'content_block_delta') {
+                                content += data.delta?.text || '';
+                            }
+                        } catch (e) {
+                            console.error('Error parsing Anthropic streaming chunk:', e, trimmedLine);
+                        }
+                    }
+                }
+            }
+
+            if (!content) {
+                throw new Error('No content returned from provider.');
+            }
+            return content;
         }
 
         async function callGemini(systemPrompt, apiKey, model) {
