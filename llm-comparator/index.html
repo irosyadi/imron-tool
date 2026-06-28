@@ -936,6 +936,11 @@
             let trimmed = endpoint.trim().replace(/\/+$/, '');
             if (trimmed.toLowerCase().endsWith('/chat/completions')) {
                 trimmed = trimmed.substring(0, trimmed.length - '/chat/completions'.length).replace(/\/+$/, '');
+            } else if (trimmed.toLowerCase().endsWith('/messages')) {
+                trimmed = trimmed.substring(0, trimmed.length - '/messages'.length).replace(/\/+$/, '');
+            }
+            if (trimmed.toLowerCase().endsWith('/models')) {
+                return trimmed;
             }
             return `${trimmed}/models`;
         }
