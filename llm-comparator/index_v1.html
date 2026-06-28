@@ -413,19 +413,7 @@
                             <button class="clear-key-button btn-danger text-xs px-2 py-1" data-provider="openai">Clear</button>
                         </div>
                         <div class="model-options ml-6 mt-3 pt-3 border-t border-base-1/20" id="openai-models">
-                            <div class="mt-2 space-y-2">
-                                <label for="openai-model-search" class="block text-xs text-base-1 uppercase tracking-wider">Search Available Models</label>
-                                <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
-                                    <input type="text" id="openai-model-search" placeholder="Search OpenAI models..." class="form-input flex-1">
-                                    <button id="openai-refresh-models" class="btn-secondary text-xs px-2 py-1">Refresh</button>
-                                </div>
-                                <div class="flex flex-wrap items-center gap-2 text-xs text-base-1">
-                                    <span id="openai-models-last-updated">Not refreshed yet</span>
-                                    <span id="openai-models-status" class="text-xs text-base-1"></span>
-                                </div>
-                                <div id="openai-model-results" class="mt-1 max-h-64 overflow-y-auto pr-1 space-y-2"></div>
-                            </div>
-                            <div class="mt-3 flex items-center gap-2">
+                            <div class="mt-2 flex items-center gap-2">
                                 <input type="text" id="openai-custom" placeholder="Model ID..." data-provider="openai" class="form-input flex-1">
                                 <button id="openai-save-model" class="btn-success">Save</button>
                             </div>
@@ -907,220 +895,6 @@
             }
         }
 
-        function getModelsEndpoint(endpoint) {
-            if (!endpoint) return '';
-            let trimmed = endpoint.trim().replace(/\/+$/, '');
-            if (trimmed.toLowerCase().endsWith('/chat/completions')) {
-                trimmed = trimmed.substring(0, trimmed.length - '/chat/completions'.length).replace(/\/+$/, '');
-            }
-            return `${trimmed}/models`;
-        }
-
-        function buildCompatibleModelResult(model, onSelect) {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'model-search-item w-full text-left';
-            button.addEventListener('click', () => onSelect(model));
-
-            const idLine = document.createElement('div');
-            idLine.className = 'text-sm text-base-00 font-semibold';
-            idLine.textContent = model.id || 'unknown-id';
-            button.appendChild(idLine);
-
-            if (model.owned_by) {
-                const ownedLine = document.createElement('div');
-                ownedLine.className = 'text-[12px] text-base-1';
-                ownedLine.textContent = `Owned by: ${model.owned_by}`;
-                button.appendChild(ownedLine);
-            }
-
-            return button;
-        }
-
-        function getCompatibleModelsCache(providerId) {
-            const raw = localStorage.getItem(`compatible_models_cache_${providerId}`);
-            if (!raw) return { cachedAt: '', models: [] };
-            try {
-                const parsed = JSON.parse(raw);
-                if (parsed && typeof parsed === 'object') {
-                    return {
-                        cachedAt: typeof parsed.cachedAt === 'string' ? parsed.cachedAt : '',
-                        models: Array.isArray(parsed.models) ? parsed.models : []
-                    };
-                }
-            } catch (error) {
-                console.error(`Failed to parse models cache for ${providerId}:`, error);
-            }
-            return { cachedAt: '', models: [] };
-        }
-
-        function setCompatibleModelsCache(providerId, cacheData) {
-            localStorage.setItem(`compatible_models_cache_${providerId}`, JSON.stringify(cacheData));
-        }
-
-        function renderCompatibleModelResults(providerId) {
-            const results = document.getElementById(`${providerId}-model-results`);
-            const searchInput = document.getElementById(`${providerId}-model-search`);
-            const modelInput = document.getElementById(`${providerId}-custom`);
-            if (!results || !searchInput) return;
-
-            results.innerHTML = '';
-            const cache = getCompatibleModelsCache(providerId);
-            if (!cache.models.length) {
-                const empty = document.createElement('div');
-                empty.className = 'text-[12px] text-base-1';
-                empty.textContent = 'No cached models yet. Refresh to list available models.';
-                results.appendChild(empty);
-                return;
-            }
-
-            const query = searchInput.value.trim().toLowerCase();
-            if (!query) {
-                const hint = document.createElement('div');
-                hint.className = 'text-[12px] text-base-1';
-                hint.textContent = 'Start typing to search the cached model list.';
-                results.appendChild(hint);
-                return;
-            }
-
-            const matches = cache.models.filter(model => {
-                const id = (model.id || '').toLowerCase();
-                const ownedBy = (model.owned_by || '').toLowerCase();
-                return id.includes(query) || ownedBy.includes(query);
-            });
-
-            if (!matches.length) {
-                const empty = document.createElement('div');
-                empty.className = 'text-[12px] text-base-1';
-                empty.textContent = 'No matching models found.';
-                results.appendChild(empty);
-                return;
-            }
-
-            const limited = matches.slice(0, 40);
-            limited.forEach(model => {
-                const card = buildCompatibleModelResult(model, selected => {
-                    if (modelInput) {
-                        modelInput.value = selected.id || '';
-                        modelInput.focus();
-                    }
-                });
-                results.appendChild(card);
-            });
-
-            if (matches.length > limited.length) {
-                const more = document.createElement('div');
-                more.className = 'text-[12px] text-base-1';
-                more.textContent = `Showing ${limited.length} of ${matches.length} matches. Refine your search to narrow results.`;
-                results.appendChild(more);
-            }
-        }
-
-        function updateCompatibleModelCacheInfo(providerId) {
-            const label = document.getElementById(`${providerId}-models-last-updated`);
-            if (!label) return;
-            const cache = getCompatibleModelsCache(providerId);
-            if (!cache.cachedAt) {
-                label.textContent = 'Not refreshed yet';
-                return;
-            }
-            const parsedDate = new Date(cache.cachedAt);
-            if (Number.isNaN(parsedDate.getTime())) {
-                label.textContent = 'Last refreshed: unknown';
-                return;
-            }
-            label.textContent = `Last refreshed: ${parsedDate.toLocaleString()}`;
-        }
-
-        function setCompatibleModelStatus(providerId, message = '', cls = 'text-base-1') {
-            const el = document.getElementById(`${providerId}-models-status`);
-            if (!el) return;
-            el.className = `text-xs ${cls}`;
-            el.textContent = message;
-        }
-
-        let compatibleModelFetchInFlight = {};
-
-        async function refreshCompatibleModels(providerId) {
-            if (compatibleModelFetchInFlight[providerId]) return;
-
-            let endpoint = '';
-            let apiKey = '';
-
-            if (providerId === 'openai') {
-                endpoint = API_CONFIGS.openai.endpoint;
-                apiKey = getStoredApiKey('openai');
-                if (!apiKey) {
-                    setCompatibleModelStatus('openai', 'Add an OpenAI API key to refresh.', 'text-sol-red');
-                    return;
-                }
-            } else {
-                const custom = getCustomProvider(providerId);
-                if (!custom) return;
-                endpoint = custom.endpoint || '';
-                apiKey = custom.apiKey || '';
-                if (!endpoint) {
-                    setCompatibleModelStatus(providerId, 'Configure an endpoint URL to refresh.', 'text-sol-red');
-                    return;
-                }
-            }
-
-            const refreshButton = document.getElementById(`${providerId}-refresh-models`);
-            compatibleModelFetchInFlight[providerId] = true;
-            if (refreshButton) {
-                refreshButton.disabled = true;
-            }
-            setCompatibleModelStatus(providerId, 'Refreshing models...', 'text-base-1');
-
-            try {
-                const modelsUrl = getModelsEndpoint(endpoint);
-                const headers = {
-                    'Content-Type': 'application/json'
-                };
-                if (apiKey) {
-                    headers['Authorization'] = `Bearer ${apiKey}`;
-                }
-
-                const response = await fetch(modelsUrl, {
-                    method: 'GET',
-                    headers: headers
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Models request failed (${response.status})`);
-                }
-
-                const body = await response.json();
-                const models = Array.isArray(body?.data) ? body.data : (Array.isArray(body) ? body : []);
-                
-                const cacheData = {
-                    cachedAt: new Date().toISOString(),
-                    models: models.map(m => {
-                        if (typeof m === 'string') {
-                            return { id: m };
-                        }
-                        return {
-                            id: m.id || m.name || '',
-                            owned_by: m.owned_by || ''
-                        };
-                    }).filter(m => m.id)
-                };
-
-                setCompatibleModelsCache(providerId, cacheData);
-                updateCompatibleModelCacheInfo(providerId);
-                renderCompatibleModelResults(providerId);
-                setCompatibleModelStatus(providerId, `Loaded ${cacheData.models.length} models.`, 'text-sol-green');
-            } catch (error) {
-                console.error(`Failed to refresh models for ${providerId}:`, error);
-                setCompatibleModelStatus(providerId, `Failed to refresh models: ${error.message}`, 'text-sol-red');
-            } finally {
-                compatibleModelFetchInFlight[providerId] = false;
-                if (refreshButton) {
-                    refreshButton.disabled = false;
-                }
-            }
-        }
-
         function loadCustomProvidersFromStorage() {
             customProviders = [];
             const raw = localStorage.getItem(CUSTOM_PROVIDERS_STORAGE_KEY);
@@ -1259,19 +1033,7 @@
                         </div>
                     </div>
                     <div class="model-options ml-0 sm:ml-6 mt-3 pt-3 border-t border-base-1/20" id="${provider.id}-models">
-                        <div class="mt-2 space-y-2">
-                            <label for="${provider.id}-model-search" class="block text-xs text-base-1 uppercase tracking-wider">Search Available Models</label>
-                            <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
-                                <input type="text" id="${provider.id}-model-search" placeholder="Search models..." class="form-input flex-1">
-                                <button id="${provider.id}-refresh-models" class="btn-secondary text-xs px-2 py-1">Refresh</button>
-                            </div>
-                            <div class="flex flex-wrap items-center gap-2 text-xs text-base-1">
-                                <span id="${provider.id}-models-last-updated">Not refreshed yet</span>
-                                <span id="${provider.id}-models-status" class="text-xs text-base-1"></span>
-                            </div>
-                            <div id="${provider.id}-model-results" class="mt-1 max-h-64 overflow-y-auto pr-1 space-y-2"></div>
-                        </div>
-                        <div class="mt-3 flex items-center gap-2">
+                        <div class="mt-2 flex items-center gap-2">
                             <input type="text" id="${provider.id}-custom" placeholder="Model name (e.g., llama3.1:latest)..." data-provider="${provider.id}" class="form-input flex-1">
                             <button id="${provider.id}-save-model" class="btn-success">Save</button>
                         </div>
@@ -1327,21 +1089,6 @@
                 }
 
                 attachSaveButtonHandler(provider.id);
-
-                // Wire up Search and Refresh event listeners for custom provider models
-                const customSearchInput = card.querySelector(`#${provider.id}-model-search`);
-                if (customSearchInput) {
-                    customSearchInput.addEventListener('input', () => renderCompatibleModelResults(provider.id));
-                }
-
-                const customRefreshButton = card.querySelector(`#${provider.id}-refresh-models`);
-                if (customRefreshButton) {
-                    customRefreshButton.addEventListener('click', () => refreshCompatibleModels(provider.id));
-                }
-
-                // Initial render of cached models for this custom provider
-                updateCompatibleModelCacheInfo(provider.id);
-                renderCompatibleModelResults(provider.id);
             });
 
             setupProviderCheckboxes();
@@ -1717,20 +1464,6 @@
             if (getStoredApiKey('openrouter') && !openRouterModelCache.models.length) {
                 refreshOpenRouterModelCache();
             }
-
-            // For OpenAI compatible models search & refresh
-            const openaiSearchInput = document.getElementById('openai-model-search');
-            if (openaiSearchInput) {
-                openaiSearchInput.addEventListener('input', () => renderCompatibleModelResults('openai'));
-            }
-
-            const openaiRefreshButton = document.getElementById('openai-refresh-models');
-            if (openaiRefreshButton) {
-                openaiRefreshButton.addEventListener('click', () => refreshCompatibleModels('openai'));
-            }
-
-            updateCompatibleModelCacheInfo('openai');
-            renderCompatibleModelResults('openai');
 
             const params = new URLSearchParams(window.location.search);
             const gistParam = extractGistId(params.get('gist') || '');
